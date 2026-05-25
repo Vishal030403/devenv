@@ -1,0 +1,307 @@
+# Gitleaks Configuration
+# Team Gamma - Industrial CI/CD Pipeline
+
+title = "Gitleaks Security Configuration"
+
+# Global settings
+[allowlist]
+    description = "Global allowlist"
+    
+    # Allowed paths (regex patterns)
+    paths = [
+        '''\.git/''',
+        '''node_modules/''',
+        '''vendor/''',
+        '''\.pytest_cache/''',
+        '''__pycache__/''',
+        '''target/''',
+        '''build/''',
+        '''dist/''',
+        '''\.venv/''',
+        '''venv/''',
+        '''\.idea/''',
+        '''\.vscode/''',
+    ]
+    
+    # Allowed commits
+    commits = []
+    
+    # Allowed regexes
+    regexes = [
+        '''example\.com''',
+        '''localhost''',
+        '''127\.0\.0\.1''',
+        '''0\.0\.0\.0''',
+        '''test[@-]''',
+        '''dummy[@-]''',
+        '''fake[@-]''',
+        '''sample[@-]''',
+    ]
+
+# AWS Access Key
+[[rules]]
+    id = "aws-access-key"
+    description = "AWS Access Key ID"
+    regex = '''(?i)(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
+    tags = ["aws", "credentials"]
+    
+    [[rules.allowlist]]
+        regexes = ['''AKIAIOSFODNN7EXAMPLE''']
+
+# AWS Secret Key
+[[rules]]
+    id = "aws-secret-key"
+    description = "AWS Secret Access Key"
+    regex = '''(?i)aws(.{0,20})?(?-i)['\"][0-9a-zA-Z/+]{40}['\"]'''
+    tags = ["aws", "credentials"]
+
+# GitHub Token
+[[rules]]
+    id = "github-token"
+    description = "GitHub Token"
+    regex = '''(?i)github(.{0,20})?(?-i)['\"][0-9a-zA-Z]{35,40}['\"]'''
+    tags = ["github", "token"]
+
+# GitHub Personal Access Token
+[[rules]]
+    id = "github-pat"
+    description = "GitHub Personal Access Token"
+    regex = '''ghp_[0-9a-zA-Z]{36}'''
+    tags = ["github", "pat"]
+
+# GitHub OAuth Token
+[[rules]]
+    id = "github-oauth"
+    description = "GitHub OAuth Token"
+    regex = '''gho_[0-9a-zA-Z]{36}'''
+    tags = ["github", "oauth"]
+
+# GitHub App Token
+[[rules]]
+    id = "github-app"
+    description = "GitHub App Token"
+    regex = '''(ghu|ghs)_[0-9a-zA-Z]{36}'''
+    tags = ["github", "app"]
+
+# GitHub Refresh Token
+[[rules]]
+    id = "github-refresh"
+    description = "GitHub Refresh Token"
+    regex = '''ghr_[0-9a-zA-Z]{76}'''
+    tags = ["github", "refresh"]
+
+# GitLab Token
+[[rules]]
+    id = "gitlab-token"
+    description = "GitLab Token"
+    regex = '''(?i)gitlab(.{0,20})?(?-i)['\"][0-9a-zA-Z\-_]{20,}['\"]'''
+    tags = ["gitlab", "token"]
+
+# Generic API Key
+[[rules]]
+    id = "generic-api-key"
+    description = "Generic API Key"
+    regex = '''(?i)(api[_-]?key|apikey)(.{0,20})?['\"][0-9a-zA-Z]{32,45}['\"]'''
+    tags = ["api", "key"]
+
+# Generic Secret
+[[rules]]
+    id = "generic-secret"
+    description = "Generic Secret"
+    regex = '''(?i)(secret|password|passwd|pwd)(.{0,20})?['\"][0-9a-zA-Z!@#$%^&*()_+\-=\[\]{};':\\|,.<>\/?]{8,}['\"]'''
+    tags = ["secret", "password"]
+    
+    [[rules.allowlist]]
+        regexes = [
+            '''(?i)(example|test|dummy|fake|sample|password123|changeme|admin|root)''',
+        ]
+
+# Private Key
+[[rules]]
+    id = "private-key"
+    description = "Private Key"
+    regex = '''-----BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY-----'''
+    tags = ["key", "private"]
+
+# Docker Registry Credentials
+[[rules]]
+    id = "docker-registry"
+    description = "Docker Registry Credentials"
+    regex = '''(?i)docker(.{0,20})?(?-i)['\"][0-9a-zA-Z]{32,}['\"]'''
+    tags = ["docker", "registry"]
+
+# NPM Token
+[[rules]]
+    id = "npm-token"
+    description = "NPM Access Token"
+    regex = '''npm_[A-Za-z0-9]{36}'''
+    tags = ["npm", "token"]
+
+# PyPI Token
+[[rules]]
+    id = "pypi-token"
+    description = "PyPI Access Token"
+    regex = '''pypi-[A-Za-z0-9]{32,}'''
+    tags = ["pypi", "token"]
+
+# Slack Token
+[[rules]]
+    id = "slack-token"
+    description = "Slack Token"
+    regex = '''xox[pboa]-[0-9]{12}-[0-9]{12}-[0-9]{12}-[a-z0-9]{32}'''
+    tags = ["slack", "token"]
+
+# Slack Webhook
+[[rules]]
+    id = "slack-webhook"
+    description = "Slack Webhook URL"
+    regex = '''https://hooks\.slack\.com/services/T[a-zA-Z0-9_]{8}/B[a-zA-Z0-9_]{8}/[a-zA-Z0-9_]{24}'''
+    tags = ["slack", "webhook"]
+
+# Google API Key
+[[rules]]
+    id = "google-api-key"
+    description = "Google API Key"
+    regex = '''AIza[0-9A-Za-z\-_]{35}'''
+    tags = ["google", "api"]
+
+# Google OAuth
+[[rules]]
+    id = "google-oauth"
+    description = "Google OAuth Token"
+    regex = '''[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com'''
+    tags = ["google", "oauth"]
+
+# Heroku API Key
+[[rules]]
+    id = "heroku-api-key"
+    description = "Heroku API Key"
+    regex = '''(?i)heroku(.{0,20})?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'''
+    tags = ["heroku", "api"]
+
+# Mailchimp API Key
+[[rules]]
+    id = "mailchimp-api-key"
+    description = "Mailchimp API Key"
+    regex = '''[0-9a-f]{32}-us[0-9]{1,2}'''
+    tags = ["mailchimp", "api"]
+
+# Mailgun API Key
+[[rules]]
+    id = "mailgun-api-key"
+    description = "Mailgun API Key"
+    regex = '''key-[0-9a-zA-Z]{32}'''
+    tags = ["mailgun", "api"]
+
+# Twilio API Key
+[[rules]]
+    id = "twilio-api-key"
+    description = "Twilio API Key"
+    regex = '''SK[0-9a-fA-F]{32}'''
+    tags = ["twilio", "api"]
+
+# SendGrid API Key
+[[rules]]
+    id = "sendgrid-api-key"
+    description = "SendGrid API Key"
+    regex = '''SG\.[0-9A-Za-z\-_]{22}\.[0-9A-Za-z\-_]{43}'''
+    tags = ["sendgrid", "api"]
+
+# Stripe API Key
+[[rules]]
+    id = "stripe-api-key"
+    description = "Stripe API Key"
+    regex = '''(?i)stripe(.{0,20})?['\"][sk|pk]_(test|live)_[0-9a-zA-Z]{24}'''
+    tags = ["stripe", "api"]
+
+# Square Access Token
+[[rules]]
+    id = "square-access-token"
+    description = "Square Access Token"
+    regex = '''sq0atp-[0-9A-Za-z\-_]{22}'''
+    tags = ["square", "token"]
+
+# Square OAuth Secret
+[[rules]]
+    id = "square-oauth-secret"
+    description = "Square OAuth Secret"
+    regex = '''sq0csp-[0-9A-Za-z\-_]{43}'''
+    tags = ["square", "oauth"]
+
+# PayPal Braintree Access Token
+[[rules]]
+    id = "paypal-braintree"
+    description = "PayPal Braintree Access Token"
+    regex = '''access_token\$production\$[0-9a-z]{16}\$[0-9a-f]{32}'''
+    tags = ["paypal", "braintree"]
+
+# Picatic API Key
+[[rules]]
+    id = "picatic-api-key"
+    description = "Picatic API Key"
+    regex = '''sk_live_[0-9a-z]{32}'''
+    tags = ["picatic", "api"]
+
+# JSON Web Token
+[[rules]]
+    id = "jwt"
+    description = "JSON Web Token"
+    regex = '''eyJ[A-Za-z0-9-_=]+\.eyJ[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]*'''
+    tags = ["jwt", "token"]
+    
+    [[rules.allowlist]]
+        regexes = ['''example\.jwt''']
+
+# Database Connection String
+[[rules]]
+    id = "database-connection-string"
+    description = "Database Connection String"
+    regex = '''(?i)(mysql|postgres|mongodb|redis)://[a-zA-Z0-9:@._-]+'''
+    tags = ["database", "connection"]
+    
+    [[rules.allowlist]]
+        regexes = [
+            '''localhost''',
+            '''127\.0\.0\.1''',
+            '''example\.com''',
+        ]
+
+# SSH Private Key
+[[rules]]
+    id = "ssh-private-key"
+    description = "SSH Private Key"
+    regex = '''-----BEGIN OPENSSH PRIVATE KEY-----'''
+    tags = ["ssh", "private-key"]
+
+# PGP Private Key
+[[rules]]
+    id = "pgp-private-key"
+    description = "PGP Private Key"
+    regex = '''-----BEGIN PGP PRIVATE KEY BLOCK-----'''
+    tags = ["pgp", "private-key"]
+
+# Basic Auth
+[[rules]]
+    id = "basic-auth"
+    description = "Basic Auth Credentials"
+    regex = '''(?i)Authorization:\s*Basic\s+[A-Za-z0-9+/=]{20,}'''
+    tags = ["auth", "basic"]
+
+# Bearer Token
+[[rules]]
+    id = "bearer-token"
+    description = "Bearer Token"
+    regex = '''(?i)Authorization:\s*Bearer\s+[A-Za-z0-9\-._~+/]+=*'''
+    tags = ["auth", "bearer"]
+
+# Environment Variable Secrets
+[[rules]]
+    id = "env-secret"
+    description = "Environment Variable Secret"
+    regex = '''(?i)(export\s+|set\s+)?[A-Z_]+(SECRET|PASSWORD|KEY|TOKEN)[A-Z_]*\s*=\s*['\"]?[A-Za-z0-9!@#$%^&*()_+\-=\[\]{};':\\|,.<>\/?]{8,}'''
+    tags = ["env", "secret"]
+    
+    [[rules.allowlist]]
+        regexes = [
+            '''(?i)(example|test|dummy|fake|sample|changeme)''',
+        ]

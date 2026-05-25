@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .app_name }}
+  namespace: {{ .app_name }}-ns
+spec:
+  replicas: 1 # Base replica count (Overridden in prod patch)
+  selector:
+    matchLabels:
+      app: {{ .app_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .app_name }}
+    spec:
+      # 🛡️ Pillar 3: Security - Prevent token mounting by default
+      automountServiceAccountToken: false
+      
+      # 🛡️ Pillar 3: Security - Force the pod to run as non-root (UID 1000)
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        
+      containers:
+        - name: {{ .app_name }}
+          image: localhost:5001/{{ .app_name }}:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: {{ .app_port }}
+            
+          # 🛡️ Pillar 3: Security - Drop all Linux capabilities & lock filesystem
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          
+          # ⚖️ Pillar 2: Resource Management - Strict Guardrails
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+              
+          # 🩺 Pillar 1: Reliability - Readiness Probe
+          readinessProbe:
+            httpGet:
+              path: {{ .health_path }}
+              port: {{ .app_port }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            
+          # 🩺 Pillar 1: Reliability - Liveness Probe
+          livenessProbe:
+            httpGet:
+              path: {{ .health_path }}
+              port: {{ .app_port }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+            
+          # 📁 Volume mount required because we made the Root FS read-only!
+          # Apps need a place to write temporary files (like logs or compiled python)
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+              
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}

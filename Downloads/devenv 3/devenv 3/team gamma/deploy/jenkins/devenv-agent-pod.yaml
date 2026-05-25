@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: default
+  containers:
+    - name: jnlp
+      image: jenkins/inbound-agent:latest
+      args: ['$(JENKINS_SECRET)', '$(JENKINS_NAME)']
+      resources:
+        requests:
+          memory: "256Mi"
+          cpu: "100m"
+    - name: docker
+      image: docker:24-cli
+      command: ['cat']
+      tty: true
+      env:
+        - name: DOCKER_HOST
+          value: tcp://localhost:2375
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+    - name: dind
+      image: docker:24-dind
+      securityContext:
+        privileged: true
+      args:
+        - --host=unix:///var/run/docker.sock
+        - --host=tcp://0.0.0.0:2375
+        - --insecure-registry=host.docker.internal:5000
+        - --insecure-registry=host.docker.internal:5001
+        - --insecure-registry=host.docker.internal:5002
+        - --insecure-registry=host.docker.internal:5003
+        - --insecure-registry=host.docker.internal:5004
+        - --insecure-registry=host.docker.internal:5005
+      env:
+        - name: DOCKER_TLS_CERTDIR
+          value: ""
+      volumeMounts:
+      - mountPath: "/home/jenkins/agent"
+        name: "workspace-volume"
+      - mountPath: "/devenv-source"
+        name: "devenv-source"
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+    - name: kubectl
+      image: bitnami/kubectl:latest
+      command: ['cat']
+      tty: true
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"

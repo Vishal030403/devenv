@@ -1,0 +1,8 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: {{ .app_name }}-ns
+  name: {{ .app_name }}
+spec:
+  rules:
+    - host: {{ .app_name }}.local

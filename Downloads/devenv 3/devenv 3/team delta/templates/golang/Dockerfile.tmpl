@@ -1,0 +1,28 @@
+# ── Stage 1: Builder ──────────────────────────────────────────────────────────
+FROM golang:{{ .go_version }}-alpine AS builder
+WORKDIR /app
+
+# Download dependencies first (cached layer)
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Build the binary
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server .
+
+# ── Stage 2: Production (scratch = zero OS, minimum attack surface) ───────────
+FROM alpine:3.19
+WORKDIR /app
+
+# 🔒 Security: Non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Copy only the compiled binary
+COPY --from=builder /app/server .
+RUN chown appuser:appgroup /app/server
+
+USER appuser
+
+EXPOSE {{ .app_port }}
+
+CMD {{ .run_command }}

@@ -1,0 +1,14 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: {{ .app_name }}-ns
+  name: {{ .app_name }}
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  rules:
+    - host: {{ .app_name }}.production.com
+  tls:
+    - hosts:
+        - {{ .app_name }}.production.com
+      secretName: {{ .app_name }}-tls

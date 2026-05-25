@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .app_name }}
+  namespace: {{ .app_name }}-ns
+spec:
+  # 🚀 Scale up for production traffic
+  replicas: 3 
+  template:
+    spec:
+      # 🛡️ High Availability: Force Kubernetes to put each replica on a DIFFERENT physical server (Node)
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - {{ .app_name }}
+                topologyKey: kubernetes.io/hostname
+                
+      containers:
+        - name: {{ .app_name }}
+          # 💪 Boost the maximum allowed resources for heavy production workloads
+          resources:
+            limits:
+              cpu: "1000m" # 1 Full Core
+              memory: "1Gi" # 1 Gigabyte of RAM

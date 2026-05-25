@@ -1,0 +1,212 @@
+# Trivy Configuration
+# Team Gamma - Industrial CI/CD Pipeline
+
+# Scan settings
+scan:
+  # Security check types
+  security-checks:
+    - vuln
+    - config
+    - secret
+  
+  # Scanners to use
+  scanners:
+    - vuln
+    - misconfig
+    - secret
+  
+  # Severities to detect
+  severity:
+    - CRITICAL
+    - HIGH
+    - MEDIUM
+  
+  # Skip certain checks
+  skip-files:
+    - "**/*.min.js"
+    - "**/node_modules/**"
+    - "**/vendor/**"
+    - "**/*.test.js"
+    - "**/*.spec.ts"
+
+# Vulnerability settings
+vulnerability:
+  # Vulnerability types
+  type:
+    - os
+    - library
+  
+  # Ignore unfixed vulnerabilities
+  ignore-unfixed: false
+  
+  # VEX (Vulnerability Exploitability eXchange)
+  vex: ""
+
+# Database settings
+db:
+  # Skip DB update
+  skip-update: false
+  
+  # DB repository
+  repository: "ghcr.io/aquasecurity/trivy-db"
+
+# Cache settings
+cache:
+  # Cache directory
+  dir: "/tmp/trivy-cache"
+  
+  # Clear cache before scanning
+  clear: false
+
+# Report settings
+report:
+  # Report format (json, table, sarif, template)
+  format: json
+  
+  # Template for custom reports
+  template: ""
+  
+  # Output file
+  output: ""
+  
+  # List all packages
+  list-all-pkgs: false
+
+# Registry settings
+registry:
+  # Skip TLS verification
+  insecure: true
+  
+  # Registry credentials
+  credentials: []
+
+# Timeout settings
+timeout:
+  # Timeout for scanning
+  scan: "5m0s"
+  
+  # Timeout for downloading DB
+  db: "5m0s"
+
+# Exit code settings
+exit-code:
+  # Exit code when vulnerabilities are found
+  on-vulnerability: 1
+  
+  # Exit code when misconfigurations are found
+  on-misconfiguration: 1
+  
+  # Exit code when secrets are found
+  on-secret: 1
+
+# Ignore rules
+ignore:
+  # Ignore specific CVEs
+  cves:
+    # - CVE-2021-12345
+  
+  # Ignore files
+  files:
+    - .trivyignore
+  
+  # Ignore licenses
+  licenses:
+    # - GPL-2.0
+    # - GPL-3.0
+
+# License settings
+license:
+  # License types to detect
+  full: false
+  
+  # Confidences
+  confidence-level: 0.9
+
+# Secret settings
+secret:
+  # Secret config path
+  config: ""
+
+# Misconfiguration settings
+misconfig:
+  # Scan for misconfigurations
+  enabled: true
+  
+  # Scanners
+  scanners:
+    - dockerfile
+    - kubernetes
+    - terraform
+  
+  # Policy paths
+  policy:
+    - builtin
+  
+  # Namespace to filter policies
+  namespaces: []
+  
+  # Trace
+  trace: false
+
+# Kubernetes settings
+kubernetes:
+  # Components to scan
+  components:
+    - workload
+    - infra
+  
+  # Kubernetes namespace
+  namespace: ""
+  
+  # kubeconfig path
+  kubeconfig: ""
+
+# Custom policies
+policy:
+  # Policy bundle repository
+  bundle:
+    repository: ""
+  
+  # Namespaces
+  namespaces: []
+  
+  # Trace
+  trace: false
+
+# File patterns
+file-patterns:
+  # Dockerfile patterns
+  dockerfile: 
+    - "Dockerfile"
+    - "Dockerfile.*"
+    - "*.dockerfile"
+  
+  # Kubernetes patterns
+  kubernetes:
+    - "*.yaml"
+    - "*.yml"
+  
+  # Terraform patterns
+  terraform:
+    - "*.tf"
+    - "*.tfvars"
+
+# Compliance
+compliance:
+  # Compliance spec
+  spec: ""
+
+# SBOM (Software Bill of Materials)
+sbom:
+  # SBOM sources
+  sources: []
+
+# Attestation
+attestation:
+  # Attestation URL
+  url: ""
+
+# Rekor (for supply chain security)
+rekor:
+  # Rekor URL
+  url: "https://rekor.sigstore.dev"

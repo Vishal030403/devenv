@@ -1,0 +1,18 @@
+clusterName: dev-cluster
+namespace: dev-apps
+
+timeouts:
+  rollout: 120
+  ingress: 60
+  smokeTest: 20
+  cleanup: 60
+  nodeReady: 120
+  clusterCreate: 300
+
+retries:
+  deployment: 5
+  ingress: 3
+  cleanup: 3
+
+logging:
+  verbose: false
