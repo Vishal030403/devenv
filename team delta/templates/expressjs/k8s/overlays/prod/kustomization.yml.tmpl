@@ -1,8 +1,0 @@
-resources:
-  - ../../base
-images:
-  - name: {{ .app_name }}
-    newName: your-registry/{{ .app_name }}
-    newTag: latest
-patches:
-  - path: patch-ingress.yml

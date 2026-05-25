@@ -1,0 +1,24 @@
+FROM python:{{ .python_version }}-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy your code into the container
+COPY . .
+
+# Create a non-root user
+RUN useradd -m appuser && chown -R appuser:appuser /app
+
+ENV DATABASE_PATH=/tmp/db.sqlite3
+# Switch to the non-root user
+USER appuser
+
+# 🩺 Healthcheck for Docker Checkov compliance
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+CMD curl --fail http://localhost:{{ .app_port }}/ || exit 1
+
+EXPOSE {{ .app_port }}
+
+# Run Django, forcing it to listen on all interfaces
+CMD ["python", "main/manage.py", "runserver", "0.0.0.0:{{ .app_port }}"]

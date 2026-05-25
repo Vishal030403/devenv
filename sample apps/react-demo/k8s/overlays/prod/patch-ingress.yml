@@ -1,0 +1,14 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: react-demo-ns
+  name: react-demo
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  rules:
+    - host: react-demo.production.com
+  tls:
+    - hosts:
+        - react-demo.production.com
+      secretName: react-demo-tls

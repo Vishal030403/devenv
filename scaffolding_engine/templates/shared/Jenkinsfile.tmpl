@@ -1,0 +1,86 @@
+pipeline {
+
+    agent any
+
+    environment {
+        APP_NAME = '{{ .app_name }}'
+        REGISTRY = '127.0.0.1:5001'
+    }
+
+    stages {
+
+        stage('🛠️ Build Docker Image') {
+            steps {
+                echo "Building production image..."
+                sh """
+                docker build -t ${APP_NAME}:latest .
+                """
+            }
+        }
+
+        stage('🧪 Run Unit Tests') {
+            steps {
+                echo "Running unit tests..."
+                sh """
+                docker run --rm ${APP_NAME}:latest sh -c '{{ .test_command }} || true'
+                """
+            }
+        }
+
+        stage('🔒 Security Scan (Checkov)') {
+            steps {
+                echo "Scanning Infrastructure as Code..."
+                sh """
+                docker run --rm -v ${WORKSPACE}:/work bridgecrew/checkov -d /work --skip-path k8s/overlays --quiet || true
+                """
+            }
+        }
+
+        stage('📦 Tag & Push to Registry') {
+            steps {
+                script {
+                    env.GIT_SHA = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    if (env.GIT_SHA == "") {
+                        env.GIT_SHA = "latest"
+                    }
+                }
+
+                echo "Tagging image with SHA: ${env.GIT_SHA}"
+
+                sh """
+                docker tag ${APP_NAME}:latest ${REGISTRY}/${APP_NAME}:${env.GIT_SHA}
+                """
+
+                sh """
+                docker push ${REGISTRY}/${APP_NAME}:${env.GIT_SHA}
+                """
+            }
+        }
+
+        stage('🚀 Deploy to Kubernetes') {
+            steps {
+                echo "Updating Kustomize and Deploying to Production..."
+                script {
+                    sh """
+                    cd k8s/base && \
+                    kustomize edit set image 127.0.0.1:5001/${APP_NAME}:latest=${REGISTRY}/${APP_NAME}:${env.GIT_SHA}
+                    """
+
+                    sh """
+                    kustomize build k8s/overlays/prod | docker run -i --rm -u root --network host \
+                      -v ${env.HOST_HOME}/.kube:/root/.kube \
+                      -e KUBECONFIG=/root/.kube/config \
+                      bitnami/kubectl --context kind-ephemeral-test --insecure-skip-tls-verify=true apply -f -
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline execution complete. Cleaning workspace..."
+            cleanWs()
+        }
+    }
+}

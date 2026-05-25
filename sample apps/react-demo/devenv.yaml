@@ -1,0 +1,15 @@
+app:
+  name: react-demo
+  framework: react
+
+registry:
+  url: localhost:5000
+
+namespace: react-demo-ns
+
+environment: local
+
+deployment:
+  replicas: 1
+  port: 80
+  health_path: "/"

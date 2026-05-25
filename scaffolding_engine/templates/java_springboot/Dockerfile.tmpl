@@ -1,0 +1,32 @@
+# Build stage
+FROM eclipse-temurin:{{ .java_version }}-jdk-alpine AS build
+WORKDIR /workspace/app
+
+COPY mvnw .
+COPY .mvn .mvn
+COPY pom.xml .
+COPY src src
+
+# Package the fat jar (skip tests during image build)
+RUN chmod +x ./mvnw && ./mvnw package -DskipTests
+
+# Production stage — lightweight JRE only
+FROM eclipse-temurin:{{ .java_version }}-jre-alpine
+VOLUME /tmp
+
+# Copy the self-contained fat jar produced by the build stage.
+# The wildcard picks up any version suffix in the jar name automatically.
+COPY --from=build /workspace/app/target/*.jar /app.jar
+
+# 🔒 Checkov standard: Never run as root!
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup && chown appuser:appgroup /app.jar
+USER appuser
+
+# 🩺 Healthcheck for Docker Checkov compliance
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl --fail http://localhost:{{ .app_port }}/ || exit 1
+
+EXPOSE {{ .app_port }}
+
+# 🚀 Run the fat jar — works for any Spring Boot project, no main-class needed.
+CMD {{ .run_command }}

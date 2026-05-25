@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: react-demo-ns
+  name: react-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: react-demo
+  template:
+    metadata:
+      labels:
+        app: react-demo
+    spec:
+      containers:
+        - name: react-demo
+          image: react-demo:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80

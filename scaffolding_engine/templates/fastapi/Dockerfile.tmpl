@@ -1,0 +1,20 @@
+FROM python:{{ .python_version }}-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# 🔒 Checkov standard: Never run as root!
+RUN useradd -m appuser && chown -R appuser /app
+USER appuser
+
+# 🩺 Healthcheck for Docker Checkov compliance
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl --fail http://localhost:{{ .app_port }}/ || exit 1
+
+EXPOSE {{ .app_port }}
+
+# 🚀 Dynamic execution based on environment
+CMD {{ .run_command }}

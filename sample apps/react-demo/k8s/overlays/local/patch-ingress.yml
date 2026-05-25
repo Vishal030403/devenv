@@ -1,0 +1,8 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: react-demo-ns
+  name: react-demo
+spec:
+  rules:
+    - host: react-demo.local
