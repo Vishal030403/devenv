@@ -1,0 +1,365 @@
+// LocalCiCd declarative pipeline — generated for generic (app)
+// Registry, Kind cluster, and Jenkins UI come from ConfigMap devenv-system/devenv-platform-config.
+// Re-scaffold: Team Delta `up` | Fast local loop without git: devenv run
+// Source template: team delta/templates/pipeline/Jenkinsfile.tmpl
+
+def platform = [:]
+
+pipeline {
+    agent {
+        kubernetes {
+            yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: default
+  volumes:
+  - name: devenv-source
+    persistentVolumeClaim:
+      claimName: devenv-workspace-pvc
+  containers:
+  - name: jnlp
+    image: jenkins/inbound-agent:latest
+    args: ['$(JENKINS_SECRET)', '$(JENKINS_NAME)']
+    volumeMounts:
+    - name: devenv-source
+      mountPath: /devenv-source
+  - name: docker
+    image: docker:24-cli
+    command: ['cat']
+    tty: true
+    env:
+      - name: DOCKER_HOST
+        value: tcp://localhost:2375
+    volumeMounts:
+    - name: devenv-source
+      mountPath: /devenv-source
+  - name: dind
+    image: docker:24-dind
+    securityContext:
+      privileged: true
+    args:
+      - --host=unix:///var/run/docker.sock
+      - --host=tcp://0.0.0.0:2375
+      - --insecure-registry=host.docker.internal:5000
+      - --insecure-registry=host.docker.internal:5001
+      - --insecure-registry=host.docker.internal:5002
+      - --insecure-registry=host.docker.internal:5003
+      - --insecure-registry=host.docker.internal:5004
+      - --insecure-registry=host.docker.internal:5005
+    env:
+      - name: DOCKER_TLS_CERTDIR
+        value: ""
+  - name: kubectl
+    image: bitnami/kubectl:latest
+    command: ['cat']
+    tty: true
+    volumeMounts:
+    - name: devenv-source
+      mountPath: /devenv-source
+'''
+            defaultContainer 'docker'
+        }
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '15'))
+        timeout(time: 45, unit: 'MINUTES')
+    }
+
+    parameters {
+        string(name: 'GIT_URL', defaultValue: '', description: 'Git remote URL (required for Jenkins builds)')
+        string(name: 'GIT_BRANCH', defaultValue: 'main', description: 'Branch to build')
+        string(name: 'APP_NAME', defaultValue: '', description: 'Override application name (optional)')
+    }
+
+    environment {
+        BUILD_TS = "${new Date().format('yyyyMMdd-HHmmss')}"
+        K8S_OVERLAY = 'k8s/overlays/local'
+        HEALTH_PATH = '/'
+        LINT_COMMAND = ''
+        UNIT_TEST_COMMAND = ''
+        SCAFFOLD_APP_NAME = 'app'
+        NEEDS_ROLLBACK = 'false'
+    }
+
+    stages {
+        stage('Load platform config') {
+            steps {
+                container('kubectl') {
+                    script {
+                        try {
+                            def json = sh(
+                                script: "timeout 15 kubectl get configmap devenv-platform-config -n devenv-system -o jsonpath='{.data.platform\\.json}' 2>/dev/null || echo ''",
+                                returnStdout: true
+                            ).trim()
+                            if (json) {
+                                platform = readJSON text: json
+                            }
+                        } catch (e) {
+                            echo "ConfigMap not available: ${e.message}"
+                        }
+
+                        if (!platform.registry_pull_host) {
+                            platform.registry_pull_host = 'host.docker.internal:5000'
+                            platform.registry_push_host = 'localhost:5000'
+                            platform.cluster_name = 'devenv-local'
+                            platform.default_app_name = env.SCAFFOLD_APP_NAME ?: 'app'
+                            echo 'Using default platform config (ConfigMap not found)'
+                        }
+                        echo "Registry: ${platform.registry_pull_host}"
+                    }
+                }
+            }
+        }
+
+        stage('Checkout') {
+            when { expression { return params.GIT_URL?.trim() } }
+            steps {
+                checkout([$class: 'GitSCM',
+                    branches: [[name: "*/${params.GIT_BRANCH}"]],
+                    userRemoteConfigs: [[url: params.GIT_URL]]
+                ])
+            }
+        }
+
+        stage('Load Local Source') {
+            when { expression { return !params.GIT_URL?.trim() } }
+            steps {
+                script {
+                    if (fileExists('/devenv-source/Dockerfile')) {
+                        sh 'cp -a /devenv-source/. .'
+                        echo 'Loaded source from devenv workspace upload'
+                    } else {
+                        error 'No local source found in PVC — provide GIT_URL or run devenv run to upload source'
+                    }
+                }
+            }
+        }
+
+        stage('Detect app') {
+            steps {
+                script {
+                    def detected = platform.default_app_name ?: env.SCAFFOLD_APP_NAME ?: 'app'
+                    if (fileExists('package.json')) {
+                        def pkg = readJSON file: 'package.json'
+                        detected = (pkg.name ?: detected).toLowerCase().replaceAll('[^a-z0-9-]', '-')
+                    }
+                    env.APP_NAME = params.APP_NAME?.trim() ? params.APP_NAME.trim() : detected
+                    env.K8S_NAMESPACE = "${env.APP_NAME}-ns"
+                    env.CONTAINER_NAME = env.APP_NAME
+                    def shortSha = env.GIT_COMMIT ? env.GIT_COMMIT.take(7) : 'local'
+                    env.ARTIFACT_TAG = "${env.BUILD_NUMBER}-${shortSha}-${env.BUILD_TS}"
+                    env.REGISTRY_HOST = platform.registry_pull_host
+                    env.IMAGE_REF = "${env.REGISTRY_HOST}/${env.APP_NAME}:${env.ARTIFACT_TAG}"
+                    echo "App: ${env.APP_NAME}  Namespace: ${env.K8S_NAMESPACE}"
+                    echo "Immutable image: ${env.IMAGE_REF}"
+                }
+            }
+        }
+
+        stage('Linting') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    script {
+                        if (!env.LINT_COMMAND?.trim()) {
+                            echo 'Lint skipped — no lint command for this framework scaffold'
+                            return
+                        }
+                        sh """
+                            set -e
+                            ${env.LINT_COMMAND}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    script {
+                        if (!env.UNIT_TEST_COMMAND?.trim()) {
+                            echo 'Unit tests skipped — no test command for this framework scaffold'
+                            return
+                        }
+                        sh """
+                            set -e
+                            ${env.UNIT_TEST_COMMAND}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                script {
+                    if (fileExists('Dockerfile')) {
+                        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                            sh '''
+                                set +e
+                                if command -v checkov >/dev/null 2>&1; then
+                                  checkov -f Dockerfile --quiet
+                                  exit $?
+                                fi
+                                if command -v hadolint >/dev/null 2>&1; then
+                                  hadolint Dockerfile
+                                  exit $?
+                                fi
+                                docker run --rm -i hadolint/hadolint < Dockerfile
+                            '''
+                        }
+                    }
+                    if (fileExists('k8s')) {
+                        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                            sh '''
+                                if command -v checkov >/dev/null 2>&1; then
+                                  checkov -d k8s --quiet || true
+                                else
+                                  echo "Checkov not installed — skipping Kubernetes policy scan"
+                                fi
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                container('docker') {
+                    sh 'docker version'
+                    sh "docker build -t ${env.APP_NAME}:latest ."
+                    sh "docker tag ${env.APP_NAME}:latest ${env.IMAGE_REF}"
+                }
+            }
+        }
+
+        stage('Registry Push') {
+            steps {
+                container('docker') {
+                    sh "docker push ${env.IMAGE_REF}"
+                    sh "docker tag ${env.APP_NAME}:latest ${env.REGISTRY_HOST}/${env.APP_NAME}:latest"
+                    sh "docker push ${env.REGISTRY_HOST}/${env.APP_NAME}:latest"
+                    echo "Pushed immutable tag: ${env.ARTIFACT_TAG}"
+                }
+            }
+        }
+
+        stage('Kubernetes Deployment') {
+            steps {
+                container('kubectl') {
+                    script {
+                        def priorImage = sh(
+                            script: "kubectl get deployment ${env.APP_NAME} -n ${env.K8S_NAMESPACE} -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true",
+                            returnStdout: true
+                        ).trim()
+                        env.PRIOR_IMAGE = priorImage ?: 'none'
+                        if (priorImage) {
+                            echo "Rollback target (prior image): ${priorImage}"
+                        }
+                        sh "test -d ${env.K8S_OVERLAY} || (echo Missing ${env.K8S_OVERLAY} && exit 1)"
+                        sh "kubectl apply --dry-run=client -k ${env.K8S_OVERLAY}"
+                        sh "kubectl apply -k ${env.K8S_OVERLAY}"
+                        sh """
+                            kubectl annotate deployment/${env.APP_NAME} -n ${env.K8S_NAMESPACE} \\
+                              devenv.cloudtechner/deploy-tag=${env.ARTIFACT_TAG} \\
+                              devenv.cloudtechner/previous-image=${env.PRIOR_IMAGE} \\
+                              --overwrite || true
+                        """
+                        sh """
+                            kubectl set image deployment/${env.APP_NAME} \\
+                              ${env.CONTAINER_NAME}=${env.IMAGE_REF} \\
+                              -n ${env.K8S_NAMESPACE} --record
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Rollout Verification') {
+            steps {
+                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                    container('kubectl') {
+                        sh "kubectl rollout status deployment/${env.APP_NAME} -n ${env.K8S_NAMESPACE} --timeout=180s"
+                        sh """
+                            kubectl wait --for=condition=ready pod \\
+                              -l app=${env.APP_NAME} -n ${env.K8S_NAMESPACE} \\
+                              --timeout=120s
+                        """
+                    }
+                }
+            }
+            post {
+                failure {
+                    script { env.NEEDS_ROLLBACK = 'true' }
+                }
+            }
+        }
+
+        stage('Smoke Testing') {
+            steps {
+                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                    container('kubectl') {
+                        script {
+                            def code = sh(
+                                script: """
+                                    kubectl run smoke-${env.BUILD_NUMBER} --rm -i --restart=Never \\
+                                      --image=curlimages/curl:latest -n ${env.K8S_NAMESPACE} \\
+                                      --command -- curl -s -o /dev/null -w '%{http_code}' \\
+                                      http://${env.APP_NAME}.${env.K8S_NAMESPACE}.svc.cluster.local:80${env.HEALTH_PATH}
+                                """,
+                                returnStdout: true
+                            ).trim()
+                            if (code.isNumber() && code.toInteger() >= 500) {
+                                error("Smoke test failed: HTTP ${code}")
+                            }
+                            echo "Smoke test HTTP ${code} on ${env.HEALTH_PATH}"
+                        }
+                    }
+                }
+            }
+            post {
+                failure {
+                    script { env.NEEDS_ROLLBACK = 'true' }
+                }
+            }
+        }
+
+        stage('Rollback Handling') {
+            when { expression { return env.NEEDS_ROLLBACK == 'true' } }
+            steps {
+                container('kubectl') {
+                    script {
+                        echo 'Rolling back deployment after failure...'
+                        def prior = env.PRIOR_IMAGE?.trim()
+                        if (prior && prior != 'none' && prior != env.IMAGE_REF) {
+                            sh """
+                                kubectl set image deployment/${env.APP_NAME} \\
+                                  ${env.CONTAINER_NAME}=${prior} \\
+                                  -n ${env.K8S_NAMESPACE} --record
+                            """
+                            sh "kubectl rollout status deployment/${env.APP_NAME} -n ${env.K8S_NAMESPACE} --timeout=120s"
+                            echo "Restored prior image: ${prior}"
+                        } else {
+                            sh "kubectl rollout undo deployment/${env.APP_NAME} -n ${env.K8S_NAMESPACE} || true"
+                            sh "kubectl rollout status deployment/${env.APP_NAME} -n ${env.K8S_NAMESPACE} --timeout=120s"
+                            echo 'Rollback via kubectl rollout undo'
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Deploy succeeded: ${env.IMAGE_REF}"
+            echo "Immutable tag in registry: ${env.ARTIFACT_TAG}"
+        }
+        failure {
+            echo 'Pipeline failed — see Rollback Handling stage when CD/smoke failed'
+        }
+    }
+}

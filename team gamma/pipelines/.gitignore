@@ -1,0 +1,84 @@
+# Team Gamma Pipeline - Gitignore
+# Generated artifacts and temporary files should not be committed
+
+# Artifact directories (generated during builds)
+artifacts/
+reports/
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.swp
+*.swo
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build outputs
+*.class
+*.jar
+*.war
+*.ear
+target/
+build/
+dist/
+out/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+ENV/
+env/
+
+# Go
+*.exe
+*.test
+*.prof
+vendor/
+
+# Docker
+.dockerignore
+
+# Kubernetes
+*.kubeconfig
+
+# Secrets (never commit)
+*.key
+*.pem
+*.p12
+*.pfx
+secrets.yaml
+secrets.yml
+.env
+.env.local
+credentials.json
+
+# Cache directories
+.cache/
+.trivy/
+.semgrep/

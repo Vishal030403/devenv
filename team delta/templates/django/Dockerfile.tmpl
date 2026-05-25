@@ -1,0 +1,16 @@
+FROM python:{{ .python_version }}-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# 🔒 Checkov standard: Never run as root!
+RUN useradd -m appuser && chown -R appuser /app
+USER appuser
+
+EXPOSE {{ .app_port }}
+
+# 🚀 Dynamic execution based on environment
+CMD {{ .run_command }}

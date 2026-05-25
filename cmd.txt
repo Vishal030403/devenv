@@ -1,0 +1,80 @@
+
+curl http://localhost:5001/v2/_catalog
+curl http://localhost:5001/v2/react-demo/tags/list
+
+docker images
+kubectl get deployment react-demo -n react-demo-ns -o yaml | grep image:
+kubectl rollout history deployment/react-demo -n react-demo-ns
+
+
+Here’s a demo runbook in order (PowerShell, Windows). Adjust the path if your folder name differs.
+
+Before you start
+Docker Desktop running
+go, docker, kubectl, kind, helm installed
+go version
+docker ps
+kubectl version --client
+kind version
+helm version
+1. Build the CLI (once per session)
+cd "c:\Users\Vishal\OneDrive\IdeaProjects\cloudTechner Projects\LocalCiCd\team alpha"
+go build -o devenv.exe .
+2. First-time environment (once per machine, ~5 min)
+# Optional: point at the sample app (default is react-demo)
+$env:DEVENV_PROJECT_PATH = "c:\Users\Vishal\OneDrive\IdeaProjects\cloudTechner Projects\LocalCiCd\sample apps\react-demo"
+.\devenv.exe setup
+Creates: Kind cluster, registry, Jenkins, scaffolding (Dockerfile, k8s/, Jenkinsfile, devenv.yaml).
+
+3. Optional — offline checks (good for demo narrative)
+.\devenv.exe pipeline test security
+.\devenv.exe pipeline test all
+.\devenv.exe status
+4. Main demo — full local pipeline (~3 min)
+.\devenv.exe run
+When it finishes:
+
+App URL is printed at the end (often something like *http://127.0.0.1:***&lt;port> — not always 8080; Jenkins uses 8080).
+Open that URL in the browser.
+5. Optional — Jenkins UI demo
+.\devenv.exe pipeline jenkins status
+Browser:
+
+http://127.0.0.1:8080
+Login: admin / admin123
+Job: devenv → local-ci-cd (build with GIT_URL if you use Jenkins; local edits without git → use devenv run).
+
+If UI is down:
+
+.\devenv.exe pipeline jenkins start
+6. Optional — “fix and re-run” demo (no full setup)
+Introduce a bug (e.g. bad line in main.jsx or CMD ["sh","-c","exit 1"] in Dockerfile).
+Run:
+.\devenv.exe run
+Fix the bug, then:
+# Only if you see "already executing" / lock error:
+Remove-Item -Force "$env:TEMP\.devenv.lock" -ErrorAction SilentlyContinue
+.\devenv.exe run
+No setup again unless you ran down.
+
+7. Tear down (end of demo)
+.\devenv.exe down
+Short “happy path” cheat sheet
+#	Command
+1
+cd ...\LocalCiCd\team alpha → go build -o devenv.exe .
+2
+$env:DEVENV_PROJECT_PATH = "...\sample apps\react-demo" (optional)
+3
+.\devenv.exe setup
+4
+.\devenv.exe pipeline test all (optional)
+5
+.\devenv.exe run
+6
+Open app URL from output + http://127.0.0.1:8080 for Jenkins
+7
+.\devenv.exe status (optional)
+8
+.\devenv.exe down
+Note: README mentions http://localhost:8080 after run — that’s usually the Jenkins UI port; the app URL is the dynamic port-forward line at the end of run. Use both in the demo.

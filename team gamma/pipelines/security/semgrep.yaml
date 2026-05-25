@@ -1,0 +1,337 @@
+# Semgrep Configuration
+# Team Gamma - Industrial CI/CD Pipeline
+
+# Rules to run
+rules:
+  # Security rules
+  - id: hardcoded-password
+    patterns:
+      - pattern: password = "..."
+      - pattern-not: password = ""
+    message: "Hardcoded password detected"
+    languages:
+      - python
+      - javascript
+      - java
+      - go
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      owasp: "A07:2021 - Identification and Authentication Failures"
+  
+  - id: sql-injection
+    patterns:
+      - pattern: $CURSOR.execute("..." + $VAR + "...")
+      - pattern: $CURSOR.execute(f"...{$VAR}...")
+    message: "Possible SQL injection vulnerability"
+    languages:
+      - python
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-89: SQL Injection"
+      owasp: "A03:2021 - Injection"
+  
+  - id: unsafe-yaml-load
+    patterns:
+      - pattern: yaml.load($DATA)
+      - pattern-not: yaml.load($DATA, Loader=yaml.SafeLoader)
+    message: "Use yaml.safe_load() instead of yaml.load()"
+    languages:
+      - python
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+  
+  - id: eval-usage
+    patterns:
+      - pattern: eval($EXPR)
+    message: "Use of eval() is dangerous and should be avoided"
+    languages:
+      - python
+      - javascript
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code"
+  
+  - id: unsafe-shell-exec
+    patterns:
+      - pattern: os.system($CMD)
+      - pattern: subprocess.call($CMD, shell=True)
+      - pattern: subprocess.Popen($CMD, shell=True)
+    message: "Unsafe shell execution - use subprocess with array of arguments"
+    languages:
+      - python
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-78: OS Command Injection"
+      owasp: "A03:2021 - Injection"
+  
+  - id: weak-crypto
+    patterns:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+    message: "Weak cryptographic hash function - use SHA-256 or better"
+    languages:
+      - python
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+  
+  - id: insecure-random
+    patterns:
+      - pattern: random.random()
+      - pattern: Math.random()
+    message: "Use cryptographically secure random number generator"
+    languages:
+      - python
+      - javascript
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: "CWE-338: Use of Cryptographically Weak PRNG"
+  
+  - id: xss-vulnerability
+    patterns:
+      - pattern: innerHTML = $VAR
+      - pattern: dangerouslySetInnerHTML={{ __html: $VAR }}
+    message: "Possible XSS vulnerability - sanitize user input"
+    languages:
+      - javascript
+      - typescript
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-79: Cross-site Scripting (XSS)"
+      owasp: "A03:2021 - Injection"
+  
+  - id: path-traversal
+    patterns:
+      - pattern: open($PATH)
+      - pattern: readFile($PATH)
+    message: "Possible path traversal - validate and sanitize file paths"
+    languages:
+      - python
+      - javascript
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: "CWE-22: Path Traversal"
+  
+  - id: hardcoded-secret
+    patterns:
+      - pattern: api_key = "..."
+      - pattern: secret_key = "..."
+      - pattern: private_key = "..."
+    message: "Hardcoded secret detected - use environment variables"
+    languages:
+      - python
+      - javascript
+      - java
+      - go
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+  
+  - id: insecure-http
+    patterns:
+      - pattern: requests.get("http://...")
+      - pattern: fetch("http://...")
+    message: "Use HTTPS instead of HTTP for secure communication"
+    languages:
+      - python
+      - javascript
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: "CWE-319: Cleartext Transmission of Sensitive Information"
+  
+  - id: missing-input-validation
+    patterns:
+      - pattern: def $FUNC($PARAM): ... return $PARAM
+    message: "Missing input validation"
+    languages:
+      - python
+    severity: INFO
+    metadata:
+      category: security
+      cwe: "CWE-20: Improper Input Validation"
+
+# Best practices rules
+  - id: console-log
+    patterns:
+      - pattern: console.log(...)
+    message: "Remove console.log() statements before production"
+    languages:
+      - javascript
+      - typescript
+    severity: INFO
+    metadata:
+      category: best-practice
+  
+  - id: print-statement
+    patterns:
+      - pattern: print(...)
+    message: "Use logging instead of print statements"
+    languages:
+      - python
+    severity: INFO
+    metadata:
+      category: best-practice
+  
+  - id: catch-all-exception
+    patterns:
+      - pattern: |
+          try:
+              ...
+          except:
+              ...
+    message: "Avoid bare except - specify exception types"
+    languages:
+      - python
+    severity: WARNING
+    metadata:
+      category: best-practice
+  
+  - id: todo-fixme
+    patterns:
+      - pattern-regex: "(TODO|FIXME|HACK|XXX|NOTE)"
+    message: "TODO/FIXME comment found"
+    languages:
+      - python
+      - javascript
+      - java
+      - go
+    severity: INFO
+    metadata:
+      category: code-quality
+  
+  - id: magic-number
+    patterns:
+      - pattern: if $VAR == 42
+      - pattern: return 3.14159
+    message: "Avoid magic numbers - use named constants"
+    languages:
+      - python
+      - javascript
+      - java
+    severity: INFO
+    metadata:
+      category: code-quality
+  
+  - id: long-function
+    patterns:
+      - pattern-regex: "def \\w+\\([^)]*\\):[\\s\\S]{500,}"
+    message: "Function is too long - consider refactoring"
+    languages:
+      - python
+    severity: INFO
+    metadata:
+      category: code-quality
+
+# Performance rules
+  - id: inefficient-loop
+    patterns:
+      - pattern: |
+          for $X in $LIST:
+              $LIST.append(...)
+    message: "Modifying list while iterating - use list comprehension"
+    languages:
+      - python
+    severity: WARNING
+    metadata:
+      category: performance
+  
+  - id: nested-loops
+    patterns:
+      - pattern: |
+          for $X in $LIST1:
+              for $Y in $LIST2:
+                  for $Z in $LIST3:
+                      ...
+    message: "Deeply nested loops - consider optimization"
+    languages:
+      - python
+      - javascript
+    severity: INFO
+    metadata:
+      category: performance
+
+# Language-specific rules
+  - id: python-deprecated-module
+    patterns:
+      - pattern: import imp
+      - pattern: import optparse
+    message: "Deprecated module - use modern alternative"
+    languages:
+      - python
+    severity: WARNING
+    metadata:
+      category: compatibility
+  
+  - id: javascript-var-usage
+    patterns:
+      - pattern: var $VAR = ...
+    message: "Use 'let' or 'const' instead of 'var'"
+    languages:
+      - javascript
+    severity: INFO
+    metadata:
+      category: best-practice
+  
+  - id: java-system-out
+    patterns:
+      - pattern: System.out.println(...)
+    message: "Use logging framework instead of System.out"
+    languages:
+      - java
+    severity: INFO
+    metadata:
+      category: best-practice
+
+# Exclusions
+exclude:
+  - "**/*.test.js"
+  - "**/*.spec.ts"
+  - "**/*.test.py"
+  - "**/test_*.py"
+  - "**/tests/**"
+  - "**/node_modules/**"
+  - "**/vendor/**"
+  - "**/__pycache__/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/.venv/**"
+  - "**/venv/**"
+
+# Paths to scan
+paths:
+  include:
+    - "**/*.py"
+    - "**/*.js"
+    - "**/*.ts"
+    - "**/*.jsx"
+    - "**/*.tsx"
+    - "**/*.java"
+    - "**/*.go"
+
+# Autofix
+autofix: false
+
+# Max target bytes (files larger than this are skipped)
+max_target_bytes: 1000000
+
+# Timeout per file
+timeout: 30
+
+# Jobs (parallel processing)
+jobs: 4
+
+# Metrics
+metrics: off

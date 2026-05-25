@@ -1,0 +1,54 @@
+package artifact
+
+import (
+	"fmt"
+	"strings"
+
+	"devenv/teamalpha/internal/log"
+	gammaregistry "devenv-gamma/pkg/registry"
+	"devenv-gamma/pkg/state"
+)
+
+// SyncRegistryCatalog refreshes registry tag list in runtime state and logs the catalog.
+func SyncRegistryCatalog(registryPort int, appName, namespace, deployment string) {
+	gammaregistry.LogRepositoryCatalog(registryPort, appName)
+	tags, err := gammaregistry.ListRepositoryTags(registryPort, appName)
+	if err != nil {
+		log.Warn("Could not list registry tags: " + err.Error())
+		return
+	}
+	if err := state.SetRegistryTagsForWorkload(namespace, deployment, tags); err != nil {
+		log.Warn("Could not persist registry tags: " + err.Error())
+	}
+}
+
+// LogDeploymentSummary prints current deployment artifact / rollback visibility.
+func LogDeploymentSummary(namespace, deployment string) {
+	w, ok, err := state.GetWorkloadDeployment(namespace, deployment)
+	if err != nil {
+		log.Warn("Deployment state: " + err.Error())
+		return
+	}
+	if !ok {
+		log.Info("No deployment history recorded yet for " + namespace + "/" + deployment)
+		return
+	}
+	if w.CurrentImage != "" {
+		log.Info("Current deployed image: " + w.CurrentImage)
+	}
+	if w.PreviousImage != "" {
+		log.Info("Previous stable image: " + w.PreviousImage)
+	}
+	if w.RollbackTarget != "" {
+		log.Info("Rollback target available: " + w.RollbackTarget)
+	}
+	if len(w.StableHistory) > 0 {
+		log.Info("Stable tag history: " + strings.Join(w.StableHistory, ", "))
+	}
+	if len(w.RegistryTags) > 0 {
+		log.Info("Registry stored tags: " + strings.Join(w.RegistryTags, ", "))
+	}
+	if w.LastResult != "" {
+		log.Info(fmt.Sprintf("Last deployment result: %s", w.LastResult))
+	}
+}
